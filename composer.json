@@ -2,7 +2,6 @@
   "name": "myattenda/backend",
   "description": "PHP Backend for MyAttenda ESP32",
   "require": {
-    "php": "^8.0",
     "ext-pdo": "*",
     "ext-pdo_mysql": "*"
   }
