@@ -12,14 +12,21 @@ try {
         die("<p style='color:red;'>Error: database/schema.sql not found.</p>");
     }
     
-    $sql = file_get_contents($sqlFile);
-    
-    // Execute the SQL file. PDO execute() can handle multiple statements if configured,
-    // but the safest way is to split by semicolon, or just use exec() for the whole string.
-    $db->setAttribute(PDO::ATTR_EMULATE_PREPARES, 0);
-    $result = $db->exec($sql);
-    
-    echo "<p style='color:green;'>2. Schema successfully imported!</p>";
+    // Check if tables already exist so we don't crash on reload
+    $tableExists = false;
+    try {
+        $db->query("SELECT 1 FROM users LIMIT 1");
+        $tableExists = true;
+    } catch (Exception $e) {}
+
+    if (!$tableExists) {
+        $sql = file_get_contents($sqlFile);
+        $db->setAttribute(PDO::ATTR_EMULATE_PREPARES, 0);
+        $db->exec($sql);
+        echo "<p style='color:green;'>2. Schema successfully imported!</p>";
+    } else {
+        echo "<p style='color:orange;'>2. Schema already exists, skipping import.</p>";
+    }
     
     // Create a default admin user if one doesn't exist
     $stmt = $db->query("SELECT id FROM users WHERE role = 'admin' LIMIT 1");
