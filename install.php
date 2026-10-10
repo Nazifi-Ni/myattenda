@@ -25,9 +25,9 @@ try {
     $stmt = $db->query("SELECT id FROM users WHERE role = 'admin' LIMIT 1");
     if (!$stmt->fetch()) {
         $adminPass = password_hash('admin123', PASSWORD_BCRYPT);
-        $ins = $db->prepare("INSERT INTO users (username, password, full_name, role) VALUES ('admin', :pass, 'System Admin', 'admin')");
+        $ins = $db->prepare("INSERT INTO users (email, password_hash, full_name, role) VALUES ('admin@myattenda.com', :pass, 'System Admin', 'admin')");
         $ins->execute(['pass' => $adminPass]);
-        echo "<p style='color:green;'>3. Default Super Admin created! (Username: <b>admin</b> | Password: <b>admin123</b>)</p>";
+        echo "<p style='color:green;'>3. Default Super Admin created! (Email: <b>admin@myattenda.com</b> | Password: <b>admin123</b>)</p>";
     }
     
     echo "<h3>Installation Complete!</h3>";
