@@ -93,6 +93,48 @@ if ($method === 'GET') {
         http_response_code(500);
         echo json_encode(['error' => 'Database error', 'message' => $e->getMessage()]);
     }
+} elseif ($method === 'DELETE') {
+    $input = json_decode(file_get_contents('php://input'), true);
+    $semesterId = isset($_GET['id']) ? (int)$_GET['id'] : (isset($input['id']) ? (int)$input['id'] : 0);
+    
+    if ($semesterId <= 0) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Semester ID is required']);
+        exit;
+    }
+    
+    try {
+        $db->beginTransaction();
+        
+        $chk = $db->prepare("SELECT id, name FROM semesters WHERE id = :id");
+        $chk->execute(['id' => $semesterId]);
+        $sem = $chk->fetch();
+        if (!$sem) {
+            throw new Exception("Semester not found.");
+        }
+
+        // Clean up linked attendance events and sessions
+        $db->exec("DELETE ae FROM attendance_events ae INNER JOIN attendance_sessions asess ON ae.session_id = asess.id WHERE asess.semester_id = {$semesterId}");
+        $db->exec("DELETE FROM attendance_sessions WHERE semester_id = {$semesterId}");
+
+        // Clean up fingerprints and enrollments
+        $db->exec("DELETE f FROM fingerprints f INNER JOIN enrollments e ON f.enrollment_id = e.id WHERE e.semester_id = {$semesterId}");
+        $db->exec("DELETE FROM enrollments WHERE semester_id = {$semesterId}");
+
+        // Unlink courses referencing this semester
+        $db->exec("UPDATE courses SET semester_id = NULL WHERE semester_id = {$semesterId}");
+
+        // Delete semester
+        $stmt = $db->prepare("DELETE FROM semesters WHERE id = :id");
+        $stmt->execute(['id' => $semesterId]);
+
+        $db->commit();
+        echo json_encode(['success' => true, 'message' => "Semester '{$sem['name']}' deleted successfully."]);
+    } catch (Exception $e) {
+        if ($db->inTransaction()) $db->rollBack();
+        http_response_code(500);
+        echo json_encode(['error' => 'Failed to delete semester: ' . $e->getMessage()]);
+    }
 } else {
     http_response_code(405);
     echo json_encode(['error' => 'Method Not Allowed']);

@@ -32,6 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $fullName = trim($_POST['full_name'] ?? '');
     $regNumber = trim($_POST['reg_number'] ?? '');
     $department = trim($_POST['department'] ?? '');
+    $level = trim($_POST['level'] ?? '');
 
     if (empty($fullName) || empty($regNumber)) {
         $message = "<div style='color: #ef4444; background: #fee2e2; padding: 1rem; border-radius: 6px; margin-bottom: 1rem;'>Name and Registration Number are required.</div>";
@@ -53,12 +54,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $internalStudentId = 0;
             if ($student) {
                 $internalStudentId = $student['id'];
-                // Update name/dept just in case
-                $upd = $db->prepare("UPDATE students SET full_name = :n, department = :d WHERE id = :id");
-                $upd->execute(['n' => $fullName, 'd' => $department, 'id' => $internalStudentId]);
+                // Update name/dept/level
+                $upd = $db->prepare("UPDATE students SET full_name = :n, department = :d, level = :lvl WHERE id = :id");
+                $upd->execute(['n' => $fullName, 'd' => $department, 'lvl' => $level, 'id' => $internalStudentId]);
             } else {
-                $ins = $db->prepare("INSERT INTO students (student_id, full_name, department) VALUES (:reg, :n, :d)");
-                $ins->execute(['reg' => $regNumber, 'n' => $fullName, 'd' => $department]);
+                $ins = $db->prepare("INSERT INTO students (student_id, full_name, department, level) VALUES (:reg, :n, :d, :lvl)");
+                $ins->execute(['reg' => $regNumber, 'n' => $fullName, 'd' => $department, 'lvl' => $level]);
                 $internalStudentId = $db->lastInsertId();
             }
 
@@ -158,6 +159,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="form-group">
                     <label>Department (Optional)</label>
                     <input type="text" name="department" placeholder="e.g. Computer Science">
+                </div>
+                <div class="form-group">
+                    <label>Academic Level</label>
+                    <select name="level" required style="width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 1rem; background-color: #fff;">
+                        <option value="">-- Select Level --</option>
+                        <option value="100L">100 Level</option>
+                        <option value="200L">200 Level</option>
+                        <option value="300L">300 Level</option>
+                        <option value="400L">400 Level</option>
+                        <option value="500L">500 Level</option>
+                        <option value="ND I">ND I</option>
+                        <option value="ND II">ND II</option>
+                        <option value="HND I">HND I</option>
+                        <option value="HND II">HND II</option>
+                        <option value="Postgraduate">Postgraduate</option>
+                    </select>
                 </div>
                 <button type="submit" class="btn">Join Course</button>
             </form>

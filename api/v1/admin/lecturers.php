@@ -60,21 +60,24 @@ if ($method === 'GET') {
     $fullName = trim($input['full_name']);
     $faculty = $input['faculty'] ?? null;
     $department = $input['department'] ?? null;
+    $customPassword = !empty($input['password']) ? trim($input['password']) : null;
     
-    // Generate secure temporary password
-    $tempPassword = bin2hex(random_bytes(6)); // 12 chars
-    $passwordHash = password_hash($tempPassword, PASSWORD_DEFAULT);
+    // Use custom password if specified by admin, otherwise generate secure temporary password
+    $passwordToUse = $customPassword ?: bin2hex(random_bytes(6));
+    $passwordHash = password_hash($passwordToUse, PASSWORD_DEFAULT);
+    $forceChange = $customPassword ? 0 : 1;
 
     try {
         $db->beginTransaction();
         
-        $stmt = $db->prepare("INSERT INTO users (email, password_hash, role, full_name, faculty, department, force_password_change) VALUES (:email, :password_hash, 'lecturer', :full_name, :faculty, :department, 1)");
+        $stmt = $db->prepare("INSERT INTO users (email, password_hash, role, full_name, faculty, department, force_password_change) VALUES (:email, :password_hash, 'lecturer', :full_name, :faculty, :department, :force_change)");
         $stmt->execute([
             'email' => $email,
             'password_hash' => $passwordHash,
             'full_name' => $fullName,
             'faculty' => $faculty,
-            'department' => $department
+            'department' => $department,
+            'force_change' => $forceChange
         ]);
         
         $userId = $db->lastInsertId();
@@ -94,7 +97,7 @@ if ($method === 'GET') {
             'data' => [
                 'id' => $userId,
                 'email' => $email,
-                'temporary_password' => $tempPassword // In a real system, send this via email
+                'temporary_password' => $passwordToUse
             ]
         ]);
     } catch (PDOException $e) {
@@ -160,6 +163,11 @@ if ($method === 'GET') {
     if (isset($input['status']) && in_array($input['status'], ['active', 'disabled'])) {
         $updates[] = "status = :status";
         $params['status'] = $input['status'];
+    }
+    if (!empty($input['password'])) {
+        $updates[] = "password_hash = :password_hash";
+        $params['password_hash'] = password_hash(trim($input['password']), PASSWORD_DEFAULT);
+        $updates[] = "force_password_change = 0";
     }
     
     if (empty($updates)) {

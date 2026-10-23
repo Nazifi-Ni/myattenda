@@ -106,6 +106,49 @@ if ($method === 'GET') {
         http_response_code(500);
         echo json_encode(['error' => 'Database error']);
     }
+} elseif ($method === 'DELETE') {
+    $input = json_decode(file_get_contents('php://input'), true);
+    $courseId = isset($_GET['id']) ? (int)$_GET['id'] : (isset($input['id']) ? (int)$input['id'] : 0);
+    
+    if ($courseId <= 0) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Course ID is required']);
+        exit;
+    }
+    
+    $lecturerId = $_SESSION['user_id'] ?? 0;
+    $isAdmin = (($_SESSION['role'] ?? '') === 'admin') ? 1 : 0;
+
+    try {
+        $db->beginTransaction();
+        
+        // Ensure course belongs to this lecturer or user is admin
+        $chk = $db->prepare("SELECT id, course_code FROM courses WHERE id = :id AND (lecturer_id = :lid OR :is_admin = 1)");
+        $chk->execute(['id' => $courseId, 'lid' => $lecturerId, 'is_admin' => $isAdmin]);
+        $course = $chk->fetch();
+        if (!$course) {
+            throw new Exception("Course not found or unauthorized to delete.");
+        }
+
+        // Clean up linked attendance sessions and events
+        $db->exec("DELETE ae FROM attendance_events ae INNER JOIN attendance_sessions asess ON ae.session_id = asess.id WHERE asess.course_id = {$courseId}");
+        $db->exec("DELETE FROM attendance_sessions WHERE course_id = {$courseId}");
+
+        // Clean up fingerprints and enrollments
+        $db->exec("DELETE f FROM fingerprints f INNER JOIN enrollments e ON f.enrollment_id = e.id WHERE e.course_id = {$courseId}");
+        $db->exec("DELETE FROM enrollments WHERE course_id = {$courseId}");
+
+        // Delete course
+        $stmt = $db->prepare("DELETE FROM courses WHERE id = :id");
+        $stmt->execute(['id' => $courseId]);
+
+        $db->commit();
+        echo json_encode(['success' => true, 'message' => "Course {$course['course_code']} deleted successfully."]);
+    } catch (Exception $e) {
+        if ($db->inTransaction()) $db->rollBack();
+        http_response_code(500);
+        echo json_encode(['error' => 'Failed to delete course: ' . $e->getMessage()]);
+    }
 } else {
     http_response_code(405);
     echo json_encode(['error' => 'Method Not Allowed']);

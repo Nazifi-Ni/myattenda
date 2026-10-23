@@ -355,7 +355,47 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'admin') {
           <label>Department</label>
           <input type="text" id="new-lecturer-dept" placeholder="Computer Science">
         </div>
-        <button type="submit" class="button button-primary">Save & Issue Temporary Credentials</button>
+        <div class="field">
+          <label>Login Password</label>
+          <input type="text" id="new-lecturer-password" placeholder="Enter password (or leave blank to auto-generate)">
+          <small style="color: var(--muted-foreground); font-size: 0.75rem;">You can set the exact password the lecturer will use to log in.</small>
+        </div>
+        <button type="submit" class="button button-primary" style="margin-top: 0.5rem;">Save Lecturer Account</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Edit Lecturer -->
+  <div id="modal-edit-lecturer" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Edit Lecturer Account</h3>
+        <button class="close-btn" onclick="closeModal('modal-edit-lecturer')">&times;</button>
+      </div>
+      <form class="form-stack" onsubmit="handleEditLecturer(event)">
+        <input type="hidden" id="edit-lecturer-id">
+        <div class="field">
+          <label>Full Name</label>
+          <input type="text" id="edit-lecturer-name" required>
+        </div>
+        <div class="field">
+          <label>Work Email</label>
+          <input type="email" id="edit-lecturer-email" required>
+        </div>
+        <div class="field">
+          <label>Faculty</label>
+          <input type="text" id="edit-lecturer-faculty">
+        </div>
+        <div class="field">
+          <label>Department</label>
+          <input type="text" id="edit-lecturer-dept">
+        </div>
+        <div class="field">
+          <label>Set / Change Password</label>
+          <input type="text" id="edit-lecturer-password" placeholder="Type new password (or leave blank to keep unchanged)">
+          <small style="color: var(--muted-foreground); font-size: 0.75rem;">Entering a password here updates their login password immediately.</small>
+        </div>
+        <button type="submit" class="button button-primary" style="margin-top: 0.5rem;">Save Changes</button>
       </form>
     </div>
   </div>
@@ -597,11 +637,11 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'admin') {
                 <td>${l.faculty || '—'}</td>
                 <td><span class="badge ${l.status === 'active' ? 'badge-success' : 'badge-danger'}">${l.status}</span></td>
                 <td>
-                  <button class="button button-secondary" style="min-height: 1.8rem; padding: 0.2rem 0.6rem; font-size: 0.72rem;" onclick="toggleLecturerStatus(${l.id}, '${l.status === 'active' ? 'disabled' : 'active'}')">
-                    ${l.status === 'active' ? 'Disable' : 'Enable'}
+                  <button class="button button-secondary" style="min-height: 1.8rem; padding: 0.2rem 0.6rem; font-size: 0.72rem;" onclick="openEditLecturerModal(${JSON.stringify(l).replace(/"/g, '&quot;')})">
+                    ✏️ Edit
                   </button>
-                  <button class="button button-secondary" style="min-height: 1.8rem; padding: 0.2rem 0.6rem; font-size: 0.72rem; margin-left: 0.25rem;" onclick="resetLecturerPassword(${l.id}, '${l.full_name.replace(/'/g, "\\'")}')">
-                    Reset Password
+                  <button class="button button-secondary" style="min-height: 1.8rem; padding: 0.2rem 0.6rem; font-size: 0.72rem; margin-left: 0.25rem;" onclick="toggleLecturerStatus(${l.id}, '${l.status === 'active' ? 'disabled' : 'active'}')">
+                    ${l.status === 'active' ? 'Disable' : 'Enable'}
                   </button>
                   <button class="button button-secondary" style="min-height: 1.8rem; padding: 0.2rem 0.6rem; font-size: 0.72rem; margin-left: 0.25rem; color: #f87171; border-color: rgba(248, 113, 113, 0.4);" onclick="deleteLecturer(${l.id}, '${l.full_name.replace(/'/g, "\\'")}')">
                     Delete
@@ -622,7 +662,8 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'admin') {
         full_name: document.getElementById('new-lecturer-name').value,
         email: document.getElementById('new-lecturer-email').value,
         faculty: document.getElementById('new-lecturer-faculty').value,
-        department: document.getElementById('new-lecturer-dept').value
+        department: document.getElementById('new-lecturer-dept').value,
+        password: document.getElementById('new-lecturer-password').value
       };
       const res = await fetch('/api/v1/admin/lecturers.php', {
         method: 'POST',
@@ -631,11 +672,52 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'admin') {
       });
       const data = await res.json();
       if (data.success) {
-        alert(`Lecturer created!\nTemporary Password: ${data.data.temporary_password}\n\nPlease copy and share this password with the lecturer.`);
+        alert(`Lecturer created successfully!\nLogin Email: ${data.data.email}\nLogin Password: ${data.data.temporary_password}`);
         closeModal('modal-add-lecturer');
+        document.getElementById('new-lecturer-password').value = '';
         loadLecturers();
       } else {
         alert(data.error || 'Failed');
+      }
+    }
+
+    function openEditLecturerModal(l) {
+      document.getElementById('edit-lecturer-id').value = l.id;
+      document.getElementById('edit-lecturer-name').value = l.full_name;
+      document.getElementById('edit-lecturer-email').value = l.email;
+      document.getElementById('edit-lecturer-faculty').value = l.faculty || '';
+      document.getElementById('edit-lecturer-dept').value = l.department || '';
+      document.getElementById('edit-lecturer-password').value = '';
+      openModal('modal-edit-lecturer');
+    }
+
+    async function handleEditLecturer(e) {
+      e.preventDefault();
+      const id = document.getElementById('edit-lecturer-id').value;
+      const payload = {
+        id: id,
+        full_name: document.getElementById('edit-lecturer-name').value,
+        email: document.getElementById('edit-lecturer-email').value,
+        faculty: document.getElementById('edit-lecturer-faculty').value,
+        department: document.getElementById('edit-lecturer-dept').value
+      };
+      const pass = document.getElementById('edit-lecturer-password').value;
+      if (pass && pass.trim() !== '') {
+        payload.password = pass.trim();
+      }
+
+      const res = await fetch('/api/v1/admin/lecturers.php', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Lecturer account updated successfully!');
+        closeModal('modal-edit-lecturer');
+        loadLecturers();
+      } else {
+        alert(data.error || 'Failed to update lecturer');
       }
     }
 

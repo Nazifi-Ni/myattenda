@@ -1286,12 +1286,37 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'lecturer') {
                 <button class="button button-secondary" style="min-height: 1.8rem; padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="openEditCourseModal(${c.id})">
                   ✏️ Edit
                 </button>
+                <button class="button button-secondary" style="min-height: 1.8rem; padding: 0.2rem 0.6rem; font-size: 0.75rem; color: #f87171; border-color: rgba(248, 113, 113, 0.4);" onclick="deleteCourse(${c.id}, '${c.course_code.replace(/'/g, "\\'")}')">
+                  🗑️ Delete
+                </button>
               </div>
             </td>
           </tr>
         `).join('');
       } else {
         body.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--muted-foreground); padding: 1.5rem;">No courses found.</td></tr>';
+      }
+    }
+
+    async function deleteCourse(courseId, courseCode) {
+      if (!confirm(`Are you sure you want to permanently delete course "${courseCode}"?\n\nWARNING: This will delete all attendance sessions, events, and student enrollments linked to this course!`)) return;
+      try {
+        const res = await fetch('/api/v1/lecturer/courses.php', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: courseId })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert(data.message || 'Course deleted successfully.');
+          loadCourses();
+          loadOverview();
+        } else {
+          alert(data.error || 'Failed to delete course');
+        }
+      } catch (e) {
+        console.error(e);
+        alert('Error deleting course');
       }
     }
 
@@ -1680,15 +1705,20 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'lecturer') {
               <td>${s.start_date || '—'}</td>
               <td>${s.end_date || '—'}</td>
               <td>
-                ${s.status !== 'active' ? `
-                  <button class="button button-primary" style="min-height: 1.8rem; padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="activateSemester(${s.id})">
-                    Activate
+                <div style="display: flex; gap: 0.4rem; align-items: center;">
+                  ${s.status !== 'active' ? `
+                    <button class="button button-primary" style="min-height: 1.8rem; padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="activateSemester(${s.id})">
+                      Activate
+                    </button>
+                  ` : `
+                    <button class="button button-secondary" style="color:var(--danger); min-height: 1.8rem; padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="closeAndResetSemester(${s.id})">
+                      Close & Wipe Devices
+                    </button>
+                  `}
+                  <button class="button button-secondary" style="min-height: 1.8rem; padding: 0.2rem 0.6rem; font-size: 0.75rem; color: #f87171; border-color: rgba(248, 113, 113, 0.4);" onclick="deleteSemester(${s.id}, '${s.name.replace(/'/g, "\\'")}')">
+                    🗑️ Delete
                   </button>
-                ` : `
-                  <button class="button button-secondary" style="color:var(--danger); min-height: 1.8rem; padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="closeAndResetSemester(${s.id})">
-                    Close & Wipe Devices
-                  </button>
-                `}
+                </div>
               </td>
             </tr>
           `).join('');
@@ -1744,6 +1774,28 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'lecturer') {
       alert(data.message || 'Semester reset executed.');
       loadSemesters();
       loadOverview();
+    }
+
+    async function deleteSemester(id, name) {
+      if (!confirm(`Are you sure you want to permanently delete semester "${name}"?\n\nWARNING: This will delete all attendance sessions, events, and student enrollments linked to this semester!`)) return;
+      try {
+        const res = await fetch('/api/v1/lecturer/semesters.php', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert(data.message || 'Semester deleted successfully.');
+          loadSemesters();
+          loadOverview();
+        } else {
+          alert(data.error || 'Failed to delete semester');
+        }
+      } catch (e) {
+        console.error(e);
+        alert('Error deleting semester');
+      }
     }
 
     // =========================================================================
