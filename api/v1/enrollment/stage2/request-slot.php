@@ -52,49 +52,85 @@ try {
     }
     $semesterId = (int)$semester['id'];
 
-    // 3. Validate lecturer / device ownership
+    // 3. Resolve lecturer / device ownership (graceful fallback)
     $assignStmt = $db->prepare("SELECT lecturer_id FROM device_assignments WHERE device_id = :did AND status = 'active' LIMIT 1");
     $assignStmt->execute(['did' => $authDeviceId]);
     $assignment = $assignStmt->fetch();
-    if (!$assignment) {
-        throw new Exception("Device is not assigned to any lecturer");
-    }
-    $lecturerId = (int)$assignment['lecturer_id'];
+    $lecturerId = $assignment ? (int)$assignment['lecturer_id'] : null;
 
-    // Validate or auto-resolve course for this lecturer
-    $courseStmt = $db->prepare("SELECT id FROM courses WHERE id = :cid AND lecturer_id = :lid AND status = 'active'");
-    $courseStmt->execute(['cid' => $courseId, 'lid' => $lecturerId]);
-    if (!$courseStmt->fetch()) {
-        // Fallback 1: check if an active session is currently running for this device
-        $activeSess = $db->prepare("SELECT course_id FROM attendance_sessions WHERE device_id = :did AND status = 'active' LIMIT 1");
-        $activeSess->execute(['did' => $authDeviceId]);
-        $row = $activeSess->fetch();
-        if ($row) {
-            $courseId = (int)$row['course_id'];
-        } else {
-            // Fallback 2: grab the lecturer's primary course
-            $primaryCourse = $db->prepare("SELECT id FROM courses WHERE lecturer_id = :lid AND status = 'active' ORDER BY id ASC LIMIT 1");
-            $primaryCourse->execute(['lid' => $lecturerId]);
-            $pRow = $primaryCourse->fetch();
-            if ($pRow) {
-                $courseId = (int)$pRow['id'];
-            } else {
-                throw new Exception("No active course found for this device's lecturer");
-            }
-        }
+    // 4. Build all representations of the 4-digit / temporary ID
+    $idVariants = array_values(array_unique(array_filter([
+        $rawTempId,
+        $tempIdNormalized,
+        ltrim($rawTempId, '0'),
+        str_pad($rawTempId, 3, '0', STR_PAD_LEFT),
+        str_pad($rawTempId, 4, '0', STR_PAD_LEFT),
+        'T-' . $rawTempId,
+        'T-' . str_pad($rawTempId, 3, '0', STR_PAD_LEFT),
+        'T-' . str_pad($rawTempId, 4, '0', STR_PAD_LEFT),
+        'T-' . ltrim($rawTempId, '0')
+    ])));
+    $inPlaceholders = implode(',', array_fill(0, count($idVariants), '?'));
+
+    $enrollment = null;
+
+    // Tier A: Check in specified course if valid
+    if ($courseId > 0) {
+        $params = array_merge([$courseId, $semesterId], $idVariants);
+        $stmt = $db->prepare("SELECT e.id, e.course_id, e.student_id 
+                              FROM enrollments e 
+                              WHERE e.course_id = ? 
+                                AND e.semester_id = ? 
+                                AND e.temporary_id IN ($inPlaceholders) 
+                                AND e.status = 'active' 
+                              LIMIT 1");
+        $stmt->execute($params);
+        $enrollment = $stmt->fetch();
     }
 
-    // 4. Validate temporary ID within this course and active semester
-    $enrollStmt = $db->prepare("SELECT id, student_id FROM enrollments WHERE course_id = :cid AND semester_id = :sid AND (temporary_id = :tid1 OR temporary_id = :tid2) AND status = 'active'");
-    $enrollStmt->execute([
-        'cid' => $courseId,
-        'sid' => $semesterId,
-        'tid1' => $tempIdNormalized,
-        'tid2' => $rawTempId
-    ]);
-    $enrollment = $enrollStmt->fetch();
+    // Tier B: Check in any course belonging to this device's lecturer
+    if (!$enrollment && $lecturerId) {
+        $params = array_merge([$lecturerId, $semesterId], $idVariants);
+        $stmt = $db->prepare("SELECT e.id, e.course_id, e.student_id 
+                              FROM enrollments e 
+                              JOIN courses c ON e.course_id = c.id 
+                              WHERE c.lecturer_id = ? 
+                                AND e.semester_id = ? 
+                                AND e.temporary_id IN ($inPlaceholders) 
+                                AND e.status = 'active' 
+                              LIMIT 1");
+        $stmt->execute($params);
+        $enrollment = $stmt->fetch();
+    }
+
+    // Tier C: Check in any active course in the active semester
     if (!$enrollment) {
-        throw new Exception("Student temporary ID '{$tempIdNormalized}' not enrolled in course for active semester");
+        $params = array_merge([$semesterId], $idVariants);
+        $stmt = $db->prepare("SELECT e.id, e.course_id, e.student_id 
+                              FROM enrollments e 
+                              WHERE e.semester_id = ? 
+                                AND e.temporary_id IN ($inPlaceholders) 
+                                AND e.status = 'active' 
+                              LIMIT 1");
+        $stmt->execute($params);
+        $enrollment = $stmt->fetch();
+    }
+
+    // Tier D: Match student whose Matric/Registration number ends with these digits
+    if (!$enrollment) {
+        $stmt = $db->prepare("SELECT e.id, e.course_id, e.student_id 
+                              FROM enrollments e 
+                              JOIN students s ON e.student_id = s.id 
+                              WHERE e.semester_id = ? 
+                                AND (s.student_id LIKE ? OR s.student_id = ?) 
+                                AND e.status = 'active' 
+                              LIMIT 1");
+        $stmt->execute([$semesterId, '%' . $rawTempId, $rawTempId]);
+        $enrollment = $stmt->fetch();
+    }
+
+    if (!$enrollment) {
+        throw new Exception("Biometric ID '{$rawTempId}' not found. Please register via link first.");
     }
     $enrollmentId = (int)$enrollment['id'];
 

@@ -34,18 +34,44 @@ try {
     $db->beginTransaction();
 
     // Find enrollment for this temporary_id
+    $idVariants = array_values(array_unique(array_filter([
+        $rawTempId,
+        $tempIdNormalized,
+        ltrim($rawTempId, '0'),
+        str_pad($rawTempId, 3, '0', STR_PAD_LEFT),
+        str_pad($rawTempId, 4, '0', STR_PAD_LEFT),
+        'T-' . $rawTempId,
+        'T-' . str_pad($rawTempId, 3, '0', STR_PAD_LEFT),
+        'T-' . str_pad($rawTempId, 4, '0', STR_PAD_LEFT),
+        'T-' . ltrim($rawTempId, '0')
+    ])));
+    $inPlaceholders = implode(',', array_fill(0, count($idVariants), '?'));
+
     $enrollStmt = $db->prepare("SELECT e.id, e.student_id, e.course_id, s.name as semester_name 
                                 FROM enrollments e 
                                 JOIN semesters s ON e.semester_id = s.id 
-                                WHERE (e.temporary_id = :tid1 OR e.temporary_id = :tid2) 
-                                  AND s.status = 'active' 
+                                WHERE s.status = 'active' 
                                   AND e.status = 'active' 
+                                  AND e.temporary_id IN ($inPlaceholders) 
                                 LIMIT 1");
-    $enrollStmt->execute(['tid1' => $tempIdNormalized, 'tid2' => $rawTempId]);
+    $enrollStmt->execute($idVariants);
     $enrollment = $enrollStmt->fetch();
 
     if (!$enrollment) {
-        throw new Exception("Enrollment matching '{$tempIdNormalized}' not found in active semester");
+        $stmt2 = $db->prepare("SELECT e.id, e.student_id, e.course_id, s.name as semester_name 
+                               FROM enrollments e 
+                               JOIN students st ON e.student_id = st.id 
+                               JOIN semesters s ON e.semester_id = s.id 
+                               WHERE s.status = 'active' 
+                                 AND e.status = 'active' 
+                                 AND (st.student_id LIKE ? OR st.student_id = ?) 
+                               LIMIT 1");
+        $stmt2->execute(['%' . $rawTempId, $rawTempId]);
+        $enrollment = $stmt2->fetch();
+    }
+
+    if (!$enrollment) {
+        throw new Exception("Enrollment matching '{$rawTempId}' not found in active semester");
     }
     $enrollmentId = (int)$enrollment['id'];
 
