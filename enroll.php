@@ -164,16 +164,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <label>Academic Level</label>
                     <select name="level" required style="width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 1rem; background-color: #fff;">
                         <option value="">-- Select Level --</option>
-                        <option value="100L">100 Level</option>
-                        <option value="200L">200 Level</option>
-                        <option value="300L">300 Level</option>
-                        <option value="400L">400 Level</option>
-                        <option value="500L">500 Level</option>
-                        <option value="ND I">ND I</option>
-                        <option value="ND II">ND II</option>
-                        <option value="HND I">HND I</option>
-                        <option value="HND II">HND II</option>
-                        <option value="Postgraduate">Postgraduate</option>
+                        <option value="100L">100L</option>
+                        <option value="200L">200L</option>
+                        <option value="300L">300L</option>
+                        <option value="400L">400L</option>
+                        <option value="500L">500L</option>
                     </select>
                 </div>
                 <button type="submit" class="btn">Join Course</button>

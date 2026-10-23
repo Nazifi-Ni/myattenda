@@ -130,8 +130,8 @@ if ($method === 'GET') {
             throw new Exception("Course not found or unauthorized to delete.");
         }
 
-        // Clean up linked attendance sessions and events
-        $db->exec("DELETE ae FROM attendance_events ae INNER JOIN attendance_sessions asess ON ae.session_id = asess.id WHERE asess.course_id = {$courseId}");
+        // Clean up linked attendance records and sessions
+        $db->exec("DELETE ar FROM attendance_records ar INNER JOIN attendance_sessions asess ON ar.session_id = asess.id WHERE asess.course_id = {$courseId}");
         $db->exec("DELETE FROM attendance_sessions WHERE course_id = {$courseId}");
 
         // Clean up fingerprints and enrollments

@@ -113,8 +113,8 @@ if ($method === 'GET') {
             throw new Exception("Semester not found.");
         }
 
-        // Clean up linked attendance events and sessions
-        $db->exec("DELETE ae FROM attendance_events ae INNER JOIN attendance_sessions asess ON ae.session_id = asess.id WHERE asess.semester_id = {$semesterId}");
+        // Clean up linked attendance records and sessions
+        $db->exec("DELETE ar FROM attendance_records ar INNER JOIN attendance_sessions asess ON ar.session_id = asess.id WHERE asess.semester_id = {$semesterId}");
         $db->exec("DELETE FROM attendance_sessions WHERE semester_id = {$semesterId}");
 
         // Clean up fingerprints and enrollments
