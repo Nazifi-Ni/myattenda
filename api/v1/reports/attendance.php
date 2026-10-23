@@ -138,6 +138,7 @@ try {
 
     // CSV Export
     if ($format === 'csv') {
+        $threshold = isset($_GET['threshold']) ? (float)$_GET['threshold'] : 75.0;
         $filename = "attendance_report_" . date('Ymd_His') . ".csv";
         header("Content-Type: text/csv; charset=utf-8");
         header("Content-Disposition: attachment; filename=\"{$filename}\"");
@@ -145,11 +146,13 @@ try {
 
         // Header line
         fputcsv($output, [
-            "Temp ID", "Student ID", "Full Name", "Department", "Level",
-            "Course Code", "Course Title", "Semester", "Attended", "Total Held", "Percentage"
+            "Biometric ID", "Student ID", "Full Name", "Department", "Level",
+            "Course Code", "Course Title", "Semester", "Attended", "Total Held", "Percentage", "Exam Eligibility"
         ]);
 
         foreach ($reportData as $record) {
+            $isEligible = ($record['attendance_percentage'] >= $threshold);
+            $statusText = $isEligible ? "ELIGIBLE (>={$threshold}%)" : "DEFAULTER (<{$threshold}%)";
             fputcsv($output, [
                 $record['temporary_id'],
                 $record['student_id'],
@@ -161,7 +164,8 @@ try {
                 $record['semester'],
                 $record['sessions_attended'],
                 $record['total_sessions_held'],
-                $record['attendance_percentage'] . '%'
+                $record['attendance_percentage'] . '%',
+                $statusText
             ]);
         }
         fclose($output);

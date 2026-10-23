@@ -373,17 +373,22 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'lecturer') {
               <span class="stat-card-note">Across all courses</span>
             </div>
             <div class="stat-card" style="min-height: 5.5rem;">
-              <span class="stat-card-label">Students at Risk (&lt;75%)</span>
+              <span class="stat-card-label" id="rep-stat-defaulter-label">Defaulters (&lt;75%)</span>
               <span class="stat-card-value" id="rep-stat-defaulters" style="color: #f87171;">0</span>
               <span class="stat-card-note">Exam Ineligible</span>
             </div>
           </div>
 
-          <div class="filter-bar">
+          <div class="filter-bar" style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
             <select id="reports-course-filter" class="search-input" onchange="filterReportsTable()">
               <option value="">All Courses</option>
             </select>
             <input type="text" id="reports-search-input" class="search-input" placeholder="Search student name or ID..." oninput="filterReportsTable()">
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-left: auto; background: rgba(255, 255, 255, 0.03); padding: 0.35rem 0.75rem; border: 1px solid var(--border); border-radius: var(--radius-md);">
+              <label for="defaulter-threshold-input" style="font-size: 0.8rem; font-weight: 600; white-space: nowrap;">Defaulter Cutoff:</label>
+              <input type="number" id="defaulter-threshold-input" min="1" max="100" value="75" style="width: 4rem; padding: 0.25rem 0.4rem; border: 1px solid var(--border); border-radius: 4px; text-align: center; font-weight: 700; color: #ef4444;" oninput="updateDefaulterThreshold(this.value)">
+              <span style="font-size: 0.85rem; font-weight: 600;">%</span>
+            </div>
           </div>
 
           <section class="panel">
@@ -1801,8 +1806,13 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'lecturer') {
     // =========================================================================
     // TAB 7: REPORTS & EXPORTS
     // =========================================================================
+    let defaulterThreshold = parseInt(localStorage.getItem('myattenda_defaulter_threshold')) || 75;
+
     async function loadReports() {
       try {
+        const thresholdInput = document.getElementById('defaulter-threshold-input');
+        if (thresholdInput) thresholdInput.value = defaulterThreshold;
+
         const res = await fetch('/api/v1/reports/attendance.php');
         const json = await res.json();
         if (json.success) {
@@ -1813,6 +1823,15 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'lecturer') {
       } catch (e) {
         console.error('Load reports error:', e);
       }
+    }
+
+    function updateDefaulterThreshold(val) {
+      let parsed = parseInt(val);
+      if (isNaN(parsed) || parsed < 1) parsed = 1;
+      if (parsed > 100) parsed = 100;
+      defaulterThreshold = parsed;
+      localStorage.setItem('myattenda_defaulter_threshold', defaulterThreshold);
+      filterReportsTable();
     }
 
     function filterReportsTable() {
@@ -1833,16 +1852,19 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'lecturer') {
       const avgAttendance = filtered.length > 0
         ? Math.round(filtered.reduce((acc, r) => acc + (r.attendance_percentage || 0), 0) / filtered.length)
         : 0;
-      const defaulters = filtered.filter(r => (r.attendance_percentage || 0) < 75).length;
+      const defaulters = filtered.filter(r => (r.attendance_percentage || 0) < defaulterThreshold).length;
 
       document.getElementById('rep-stat-sessions').innerText = totalSessions;
       document.getElementById('rep-stat-avg').innerText = avgAttendance + '%';
+      
+      const defLabel = document.getElementById('rep-stat-defaulter-label');
+      if (defLabel) defLabel.innerHTML = `Defaulters (&lt;${defaulterThreshold}%)`;
       document.getElementById('rep-stat-defaulters').innerText = defaulters;
 
-      // Update Download CSV link
+      // Update Download CSV link with custom threshold
       const csvBtn = document.getElementById('download-reports-csv-btn');
       if (csvBtn) {
-        let csvUrl = '/api/v1/reports/attendance.php?format=csv';
+        let csvUrl = `/api/v1/reports/attendance.php?format=csv&threshold=${defaulterThreshold}`;
         if (courseFilter) csvUrl += `&course_id=${courseFilter}`;
         csvBtn.setAttribute('href', csvUrl);
       }
@@ -1856,7 +1878,7 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'lecturer') {
 
       if (records.length > 0) {
         body.innerHTML = records.map(r => {
-          const eligible = (r.attendance_percentage || 0) >= 75;
+          const eligible = (r.attendance_percentage || 0) >= defaulterThreshold;
           return `
             <tr>
               <td><code>${r.temporary_id}</code></td>
@@ -1867,7 +1889,7 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'lecturer') {
               <td><strong>${r.attendance_percentage}%</strong></td>
               <td>
                 <span class="badge ${eligible ? 'badge-success' : 'badge-danger'}">
-                  ${eligible ? 'ELIGIBLE (≥75%)' : 'DEFAULTER (<75%)'}
+                  ${eligible ? `ELIGIBLE (≥${defaulterThreshold}%)` : `DEFAULTER (<${defaulterThreshold}%)`}
                 </span>
               </td>
             </tr>
