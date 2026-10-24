@@ -59,14 +59,37 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'lecturer') {
 </head>
 <body>
 
+  <!-- Mobile Topbar for responsive screens -->
+  <header class="mobile-topbar">
+    <button class="mobile-menu-btn" onclick="toggleMobileSidebar()" aria-label="Toggle Navigation">
+      ☰
+    </button>
+    <a href="/dashboard/index.php" class="brand-lockup">
+      <span class="brand-mark">⚡</span>
+      <span class="brand-name">MyAttenda</span>
+      <span class="brand-version" style="color: #93c5fd;">LECTURER</span>
+    </a>
+    <button class="mobile-menu-btn" onclick="refreshCurrentTab()" title="Refresh Data" style="font-size: 1rem;">
+      🔄
+    </button>
+  </header>
+
+  <!-- Mobile Drawer Backdrop -->
+  <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeMobileSidebar()"></div>
+
   <div class="portal-layout">
     <!-- Sidebar -->
-    <aside class="sidebar">
-      <a href="/dashboard/index.php" class="brand-lockup">
-        <span class="brand-mark">⚡</span>
-        <span class="brand-name">MyAttenda</span>
-        <span class="brand-version">LECTURER</span>
-      </a>
+    <aside class="sidebar" id="sidebar">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <a href="/dashboard/index.php" class="brand-lockup">
+          <span class="brand-mark">⚡</span>
+          <span class="brand-name">MyAttenda</span>
+          <span class="brand-version">LECTURER</span>
+        </a>
+        <button class="mobile-menu-btn" onclick="closeMobileSidebar()" style="background: transparent; color: #fff; font-size: 1.25rem; margin-left: auto;" id="sidebar-close-btn" aria-label="Close Navigation">
+          ✕
+        </button>
+      </div>
 
       <div class="sidebar-section">
         <span class="sidebar-label">WORKSPACE</span>
@@ -750,12 +773,31 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'lecturer') {
       return valid.includes(hash) ? hash : 'overview';
     }
 
+    function toggleMobileSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const backdrop = document.getElementById('sidebar-backdrop');
+      if (sidebar && backdrop) {
+        sidebar.classList.toggle('mobile-open');
+        backdrop.classList.toggle('active');
+      }
+    }
+
+    function closeMobileSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const backdrop = document.getElementById('sidebar-backdrop');
+      if (sidebar && backdrop) {
+        sidebar.classList.remove('mobile-open');
+        backdrop.classList.remove('active');
+      }
+    }
+
     function switchTab(tabId, updateHash = true) {
       if (tabId === 'device') tabId = 'overview';
       currentTab = tabId;
       if (updateHash) {
         window.location.hash = '#' + tabId;
       }
+      closeMobileSidebar();
 
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.sidebar-link').forEach(el => el.classList.remove('active'));

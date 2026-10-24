@@ -12,6 +12,54 @@ $roleParam = $_GET['role'] ?? 'lecturer';
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    .role-pills {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      background: var(--muted);
+      padding: 0.35rem;
+      border-radius: var(--radius-md);
+    }
+    .role-pill {
+      flex: 1;
+      text-align: center;
+      padding: 0.55rem 0.75rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--muted-foreground);
+      text-decoration: none;
+      transition: all 0.15s ease;
+    }
+    .role-pill.active {
+      background: var(--surface-raised);
+      color: var(--foreground);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    }
+    .password-field-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .password-field-wrapper input {
+      padding-right: 4rem;
+    }
+    .pw-toggle-btn {
+      position: absolute;
+      right: 0.75rem;
+      background: none;
+      border: none;
+      color: var(--brand);
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 0.25rem 0.5rem;
+    }
+    .pw-toggle-btn:hover {
+      opacity: 0.85;
+    }
+  </style>
 </head>
 <body>
   <main class="login-page">
@@ -37,10 +85,22 @@ $roleParam = $_GET['role'] ?? 'lecturer';
     <!-- Main Login Card -->
     <section class="login-main">
       <div class="login-card">
-        <span class="eyebrow"><?= htmlspecialchars(strtoupper($roleParam)) ?> PORTAL</span>
+        <!-- Role Switching Pills -->
+        <div class="role-pills">
+          <a href="?role=lecturer" class="role-pill <?= $roleParam !== 'admin' ? 'active' : '' ?>">
+            👨‍🏫 Lecturer
+          </a>
+          <a href="?role=admin" class="role-pill <?= $roleParam === 'admin' ? 'active' : '' ?>">
+            ⚡ Super Admin
+          </a>
+        </div>
+
+        <span class="eyebrow"><?= htmlspecialchars(strtoupper($roleParam)) ?> ACCESS</span>
         <h2>Welcome back.</h2>
         <p class="login-card-intro">
-          Use the credentials issued by your administrator. New accounts are provisioned via Super Admin.
+          <?= $roleParam === 'admin' 
+              ? 'Enter administrator credentials to manage platform hardware, lecturers, and system audits.' 
+              : 'Sign in to access your assigned ESP32 device, courses, and attendance reports.' ?>
         </p>
 
         <div id="error-box" class="form-error" style="display: none; margin-bottom: 1rem;"></div>
@@ -53,22 +113,25 @@ $roleParam = $_GET['role'] ?? 'lecturer';
 
           <div class="field">
             <label for="password">Password</label>
-            <input id="password" name="password" type="password" autocomplete="current-password" required placeholder="Enter your password">
+            <div class="password-field-wrapper">
+              <input id="password" name="password" type="password" autocomplete="current-password" required placeholder="Enter your password">
+              <button type="button" class="pw-toggle-btn" id="pw-toggle" onclick="togglePasswordVisibility()">Show</button>
+            </div>
           </div>
 
-          <button type="submit" id="submit-btn" class="button button-primary">
+          <button type="submit" id="submit-btn" class="button button-primary" style="width: 100%;">
             Sign In →
           </button>
         </form>
 
-        <div style="margin-top: 1.5rem; padding: 0.9rem; background: var(--surface); border: 1px dashed var(--border); border-radius: var(--radius-md); font-size: 0.76rem; color: var(--muted-foreground);">
-          <strong>💡 Development Quick Login:</strong><br>
-          Admin: <code>admin@test.com</code> / <code>password123</code><br>
-          <small>(Ensure this user exists in your MariaDB <code>users</code> table)</small>
+        <div style="margin-top: 1.5rem; padding: 0.85rem 1rem; background: var(--surface); border: 1px dashed var(--border); border-radius: var(--radius-md); font-size: 0.76rem; color: var(--muted-foreground);">
+          <strong>💡 System Credentials:</strong><br>
+          Super Admin: <code>admin@test.com</code> / <code>password123</code><br>
+          <span style="opacity: 0.85; font-size: 0.72rem;">Lecturer accounts: Created and managed in Super Admin portal.</span>
         </div>
 
         <p class="login-footer">
-          Need access? Contact your institution's MyAttenda administrator. 
+          Need an account? Contact your institution's MyAttenda administrator. 
           <br><br>
           <a href="/" class="button-quiet">← Return to Home</a>
         </p>
@@ -77,6 +140,18 @@ $roleParam = $_GET['role'] ?? 'lecturer';
   </main>
 
   <script>
+    function togglePasswordVisibility() {
+      const pwInput = document.getElementById('password');
+      const toggleBtn = document.getElementById('pw-toggle');
+      if (pwInput.type === 'password') {
+        pwInput.type = 'text';
+        toggleBtn.innerText = 'Hide';
+      } else {
+        pwInput.type = 'password';
+        toggleBtn.innerText = 'Show';
+      }
+    }
+
     const form = document.getElementById('login-form');
     const errorBox = document.getElementById('error-box');
     const submitBtn = document.getElementById('submit-btn');
@@ -113,7 +188,7 @@ $roleParam = $_GET['role'] ?? 'lecturer';
           submitBtn.innerText = 'Sign In →';
         }
       } catch (err) {
-        errorBox.innerText = 'Unable to connect to the backend server. Please make sure the PHP server is active on port 8000.';
+        errorBox.innerText = 'Unable to connect to the backend server. Please verify your connection.';
         errorBox.style.display = 'block';
         submitBtn.disabled = false;
         submitBtn.innerText = 'Sign In →';

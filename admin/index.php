@@ -52,14 +52,37 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'admin') {
 </head>
 <body>
 
+  <!-- Mobile Navigation Topbar -->
+  <header class="mobile-topbar">
+    <button class="mobile-menu-btn" onclick="toggleMobileSidebar()" aria-label="Toggle Navigation">
+      ☰
+    </button>
+    <a href="/admin/index.php" class="brand-lockup">
+      <span class="brand-mark">⚡</span>
+      <span class="brand-name">MyAttenda</span>
+      <span class="brand-version" style="color: #60a5fa;">ADMIN</span>
+    </a>
+    <button class="mobile-menu-btn" onclick="refreshCurrentTab()" title="Refresh Data" style="font-size: 1rem;">
+      🔄
+    </button>
+  </header>
+
+  <!-- Mobile Drawer Backdrop -->
+  <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeMobileSidebar()"></div>
+
   <div class="portal-layout">
     <!-- Sidebar Navigation -->
-    <aside class="sidebar">
-      <a href="/admin/index.php" class="brand-lockup">
-        <span class="brand-mark">⚡</span>
-        <span class="brand-name">MyAttenda</span>
-        <span class="brand-version">ADMIN</span>
-      </a>
+    <aside class="sidebar" id="sidebar">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <a href="/admin/index.php" class="brand-lockup">
+          <span class="brand-mark">⚡</span>
+          <span class="brand-name">MyAttenda</span>
+          <span class="brand-version">ADMIN</span>
+        </a>
+        <button class="mobile-menu-btn" onclick="closeMobileSidebar()" style="background: transparent; color: #fff; font-size: 1.25rem; margin-left: auto;" aria-label="Close Navigation">
+          ✕
+        </button>
+      </div>
 
       <div class="sidebar-section">
         <span class="sidebar-label">WORKSPACE</span>
@@ -548,8 +571,27 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'admin') {
   <script>
     let currentTab = 'overview';
 
+    function toggleMobileSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const backdrop = document.getElementById('sidebar-backdrop');
+      if (sidebar && backdrop) {
+        sidebar.classList.toggle('mobile-open');
+        backdrop.classList.toggle('active');
+      }
+    }
+
+    function closeMobileSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const backdrop = document.getElementById('sidebar-backdrop');
+      if (sidebar && backdrop) {
+        sidebar.classList.remove('mobile-open');
+        backdrop.classList.remove('active');
+      }
+    }
+
     function switchTab(tabId) {
       currentTab = tabId;
+      closeMobileSidebar();
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.sidebar-link').forEach(el => el.classList.remove('active'));
 
