@@ -242,7 +242,8 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'lecturer') {
           <section class="panel" id="session-roster-panel" style="display: none; margin-top: 1.5rem;">
             <div class="panel-header">
               <h3 id="session-roster-title">Session Roster</h3>
-              <div style="display: flex; gap: 0.5rem; align-items: center;">
+              <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                <button class="button button-danger" id="roster-stop-session-btn" style="display: none; min-height: 1.8rem; padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="stopAttendanceSession(viewingRosterSessionId)">⏹️ End Session</button>
                 <button class="button button-secondary" style="min-height: 1.8rem; padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="exportCurrentSessionCsv()">📥 Export CSV</button>
                 <button class="button button-secondary" style="min-height: 1.8rem; padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="closeRosterPanel()">✕ Close Roster</button>
               </div>
@@ -1052,28 +1053,36 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'lecturer') {
       }
     }
 
-    async function stopAttendanceSession() {
-      if (!currentSessionId) return;
-      if (!confirm('Are you sure you want to stop the current attendance session?')) return;
+    async function stopAttendanceSession(targetId = null) {
+      const sessId = targetId || currentSessionId || 0;
+      if (!confirm('Are you sure you want to end this attendance session?')) return;
       
-      const res = await fetch('/api/v1/lecturer/sessions.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'stop', session_id: currentSessionId })
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert('Attendance session closed.');
-        currentSessionId = null;
-        sessionStartTime = null;
-        if (sessionTimerInterval) {
-          clearInterval(sessionTimerInterval);
-          sessionTimerInterval = null;
+      try {
+        const res = await fetch('/api/v1/lecturer/sessions.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'stop', session_id: sessId })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert('Attendance session ended successfully.');
+          currentSessionId = null;
+          sessionStartTime = null;
+          if (sessionTimerInterval) {
+            clearInterval(sessionTimerInterval);
+            sessionTimerInterval = null;
+          }
+          stopLivePolling();
+          loadOverview();
+          loadSessions();
+          if (viewingRosterSessionId) {
+            viewSessionRoster(viewingRosterSessionId, true);
+          }
+        } else {
+          alert(data.error || 'Failed to stop session');
         }
-        stopLivePolling();
-        loadOverview();
-      } else {
-        alert(data.error || 'Failed to stop session');
+      } catch (err) {
+        alert('Network error while terminating session: ' + err.message);
       }
     }
 
@@ -1125,7 +1134,12 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'lecturer') {
             <td><span class="badge ${s.status === 'active' ? 'badge-success' : 'badge-neutral'}">${s.status.toUpperCase()}</span></td>
             <td><strong>${s.attendance_count}</strong> / ${s.enrolled_count}</td>
             <td>
-              <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+              <div style="display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center; flex-wrap: wrap;">
+                ${s.status === 'active' ? `
+                  <button class="button button-danger" style="min-height: 1.8rem; padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="stopAttendanceSession(${s.id})">
+                    ⏹️ End Session
+                  </button>
+                ` : ''}
                 <button class="button button-secondary" style="min-height: 1.8rem; padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="viewSessionRoster(${s.id})">
                   👁️ View Roster
                 </button>
@@ -1175,9 +1189,14 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'lecturer') {
           const panel = document.getElementById('session-roster-panel');
           panel.style.display = 'block';
 
+          const stopBtn = document.getElementById('roster-stop-session-btn');
+          if (stopBtn) {
+            stopBtn.style.display = json.session.status === 'active' ? 'inline-flex' : 'none';
+          }
+
           document.getElementById('session-roster-title').innerHTML = `
             Session #${sessionId} — ${json.session.course_code}: ${json.session.course_title}
-            ${json.session.status === 'active' ? '<span class="badge badge-success" style="margin-left: 0.5rem; font-size: 0.72rem;">● LIVE SYNCING</span>' : ''}
+            ${json.session.status === 'active' ? '<span class="badge badge-success" style="margin-left: 0.5rem; font-size: 0.72rem;">● LIVE CLASS</span>' : ''}
           `;
 
           document.getElementById('session-summary-box').innerHTML = `
@@ -1956,6 +1975,39 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'lecturer') {
     document.getElementById('logout-btn').addEventListener('click', async () => {
       await fetch('/api/v1/auth/logout.php', { method: 'POST' });
       window.location.href = '/login.php';
+    });
+
+    // --- UNIVERSAL BUTTON LOADING FEEDBACK ---
+    function setButtonLoading(btn, isLoading) {
+      if (!btn) return;
+      if (isLoading) {
+        btn.classList.add('is-loading');
+        btn.setAttribute('disabled', 'true');
+      } else {
+        btn.classList.remove('is-loading');
+        btn.removeAttribute('disabled');
+      }
+    }
+
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('button, .button');
+      if (!btn) return;
+      if (btn.classList.contains('is-loading') || btn.classList.contains('close-btn') || btn.id === 'sidebar-close-btn') return;
+
+      btn.classList.add('is-loading');
+      setTimeout(() => {
+        btn.classList.remove('is-loading');
+      }, 2500);
+    });
+
+    document.addEventListener('submit', (e) => {
+      const submitBtn = e.target.querySelector('button[type="submit"], input[type="submit"]');
+      if (submitBtn) {
+        submitBtn.classList.add('is-loading');
+        setTimeout(() => {
+          submitBtn.classList.remove('is-loading');
+        }, 4000);
+      }
     });
 
     // --- INITIALIZE ---

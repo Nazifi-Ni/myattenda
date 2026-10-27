@@ -404,3 +404,48 @@ a { color: inherit; text-decoration: none; }
     font-size: 0.7rem;
   }
 }
+
+
+/* ================================================================ */
+/* UNIVERSAL BUTTON LOADING STATES                                   */
+/* ================================================================ */
+.button.is-loading,
+button.is-loading,
+.button.btn-loading,
+button.btn-loading {
+  position: relative !important;
+  color: transparent !important;
+  pointer-events: none !important;
+  opacity: 0.82 !important;
+  cursor: wait !important;
+}
+
+.button.is-loading::after,
+button.is-loading::after,
+.button.btn-loading::after,
+button.btn-loading::after {
+  content: "" !important;
+  position: absolute !important;
+  width: 1.1rem !important;
+  height: 1.1rem !important;
+  top: 50% !important;
+  left: 50% !important;
+  margin-top: -0.55rem !important;
+  margin-left: -0.55rem !important;
+  border: 2px solid rgba(255, 255, 255, 0.35) !important;
+  border-top-color: #ffffff !important;
+  border-radius: 50% !important;
+  animation: btn-spin-anim 0.65s linear infinite !important;
+  box-sizing: border-box !important;
+}
+
+.button-secondary.is-loading::after,
+.button-secondary.btn-loading::after {
+  border-color: rgba(148, 163, 184, 0.3) !important;
+  border-top-color: var(--primary) !important;
+}
+
+@keyframes btn-spin-anim {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

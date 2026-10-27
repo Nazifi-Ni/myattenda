@@ -6,12 +6,13 @@ require_once __DIR__ . '/../../config/database.php';
 
 Middleware::requireAuth();
 $lecturerId = $_SESSION['user_id'];
+$isAdmin = (($_SESSION['role'] ?? '') === 'admin');
 $db = Database::getConnection();
 $method = $_SERVER['REQUEST_METHOD'];
 
 try {
     if ($method === 'GET') {
-        // List sessions for this lecturer
+        // List sessions for this lecturer (or all if admin)
         $courseId = isset($_GET['course_id']) ? (int)$_GET['course_id'] : null;
         $status = $_GET['status'] ?? null;
 
@@ -20,9 +21,16 @@ try {
                          (SELECT COUNT(*) FROM enrollments e WHERE e.course_id = s.course_id AND e.semester_id = s.semester_id AND e.status = 'active') as enrolled_count
                   FROM attendance_sessions s
                   JOIN courses c ON s.course_id = c.id
-                  JOIN devices d ON s.device_id = d.id
-                  WHERE s.lecturer_id = :lid";
-        $params = ['lid' => $lecturerId];
+                  LEFT JOIN devices d ON s.device_id = d.id";
+        
+        $params = [];
+        if (!$isAdmin) {
+            $query .= " WHERE (s.lecturer_id = :lid OR s.device_id IN (SELECT device_id FROM device_assignments WHERE lecturer_id = :lid2 AND status = 'active'))";
+            $params['lid'] = $lecturerId;
+            $params['lid2'] = $lecturerId;
+        } else {
+            $query .= " WHERE 1=1";
+        }
 
         if ($courseId) {
             $query .= " AND s.course_id = :cid";
@@ -48,19 +56,32 @@ try {
         $action = $input['action'] ?? 'start';
 
         if ($action === 'stop') {
-            if (empty($input['session_id'])) {
-                http_response_code(400);
-                echo json_encode(['error' => 'session_id is required to stop session']);
-                exit;
-            }
-            $sessionId = (int)$input['session_id'];
+            $sessionId = !empty($input['session_id']) ? (int)$input['session_id'] : 0;
 
-            $stmt = $db->prepare("UPDATE attendance_sessions SET status = 'completed', end_time = NOW() WHERE id = :id AND lecturer_id = :lid AND status = 'active'");
-            $stmt->execute(['id' => $sessionId, 'lid' => $lecturerId]);
+            if ($sessionId > 0) {
+                if ($isAdmin) {
+                    $stmt = $db->prepare("UPDATE attendance_sessions SET status = 'completed', end_time = NOW() WHERE id = :id AND status = 'active'");
+                    $stmt->execute(['id' => $sessionId]);
+                } else {
+                    $stmt = $db->prepare("UPDATE attendance_sessions SET status = 'completed', end_time = NOW() WHERE id = :id AND (lecturer_id = :lid OR device_id IN (SELECT device_id FROM device_assignments WHERE lecturer_id = :lid2 AND status = 'active')) AND status = 'active'");
+                    $stmt->execute(['id' => $sessionId, 'lid' => $lecturerId, 'lid2' => $lecturerId]);
+                }
+            } else {
+                // If session_id is omitted or 0, stop ANY currently active session
+                if ($isAdmin) {
+                    $stmt = $db->prepare("UPDATE attendance_sessions SET status = 'completed', end_time = NOW() WHERE status = 'active'");
+                    $stmt->execute();
+                } else {
+                    $stmt = $db->prepare("UPDATE attendance_sessions SET status = 'completed', end_time = NOW() WHERE (lecturer_id = :lid OR device_id IN (SELECT device_id FROM device_assignments WHERE lecturer_id = :lid2 AND status = 'active')) AND status = 'active'");
+                    $stmt->execute(['lid' => $lecturerId, 'lid2' => $lecturerId]);
+                }
+            }
 
             // Audit log
-            $logStmt = $db->prepare("INSERT INTO audit_logs (user_id, action, description) VALUES (:uid, 'STOP_ATTENDANCE_SESSION', :desc)");
-            $logStmt->execute(['uid' => $lecturerId, 'desc' => "Closed attendance session ID {$sessionId}"]);
+            try {
+                $logStmt = $db->prepare("INSERT INTO audit_logs (user_id, action, description) VALUES (:uid, 'STOP_ATTENDANCE_SESSION', :desc)");
+                $logStmt->execute(['uid' => $lecturerId, 'desc' => "Closed attendance session ID " . ($sessionId ?: 'active')]);
+            } catch (Exception $e) {}
 
             echo json_encode([
                 'success' => true,
@@ -156,11 +177,13 @@ try {
 
         $db->beginTransaction();
 
-        // Ensure session belongs to lecturer
-        $sCheck = $db->prepare("SELECT id FROM attendance_sessions WHERE id = :sid AND lecturer_id = :lid");
-        $sCheck->execute(['sid' => $sessionId, 'lid' => $lecturerId]);
-        if (!$sCheck->fetch()) {
-            throw new Exception("Session not found or not assigned to you");
+        // Ensure session belongs to lecturer or user is admin
+        if (!$isAdmin) {
+            $sCheck = $db->prepare("SELECT id FROM attendance_sessions WHERE id = :sid AND (lecturer_id = :lid OR device_id IN (SELECT device_id FROM device_assignments WHERE lecturer_id = :lid2 AND status = 'active'))");
+            $sCheck->execute(['sid' => $sessionId, 'lid' => $lecturerId, 'lid2' => $lecturerId]);
+            if (!$sCheck->fetch()) {
+                throw new Exception("Session not found or not assigned to you");
+            }
         }
 
         // Delete associated attendance records first

@@ -1250,6 +1250,28 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'admin') {
       window.location.href = '/login.php';
     });
 
+    // --- UNIVERSAL BUTTON LOADING FEEDBACK ---
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('button, .button');
+      if (!btn) return;
+      if (btn.classList.contains('is-loading') || btn.classList.contains('close-btn') || btn.classList.contains('mobile-menu-btn')) return;
+
+      btn.classList.add('is-loading');
+      setTimeout(() => {
+        btn.classList.remove('is-loading');
+      }, 2500);
+    });
+
+    document.addEventListener('submit', (e) => {
+      const submitBtn = e.target.querySelector('button[type="submit"], input[type="submit"]');
+      if (submitBtn) {
+        submitBtn.classList.add('is-loading');
+        setTimeout(() => {
+          submitBtn.classList.remove('is-loading');
+        }, 4000);
+      }
+    });
+
     // Run initial tab load
     loadOverview();
   </script>
