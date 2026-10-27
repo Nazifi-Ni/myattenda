@@ -97,6 +97,7 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'admin') {
       <div class="sidebar-section">
         <span class="sidebar-label">OPERATIONS</span>
         <a href="#audit" class="sidebar-link" onclick="switchTab('audit')">🛡️ Audit Center</a>
+        <a href="#backups" class="sidebar-link" onclick="switchTab('backups')">💾 Database & Backups</a>
         <a href="/simulator.php" class="sidebar-link" style="color: #60a5fa; font-weight: 700;">🧪 Hardware Simulator</a>
         <a href="/docs/API.md" target="_blank" class="sidebar-link">📖 REST API Docs</a>
       </div>
@@ -348,11 +349,128 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'admin') {
           </section>
         </div>
 
+        <!-- ================= TAB 9: DATABASE & BACKUPS ================= -->
+        <div id="tab-backups" class="tab-content">
+          <div class="stat-grid">
+            <div class="stat-card">
+              <span class="stat-card-label">Database Name</span>
+              <span class="stat-card-value" id="db-stat-name" style="font-size: 1.15rem; word-break: break-all;">—</span>
+              <span class="stat-card-note" id="db-stat-host">Host: Checking...</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-card-label">Total Tables</span>
+              <span class="stat-card-value" id="db-stat-tables">—</span>
+              <span class="stat-card-note" id="db-stat-version">MariaDB/MySQL</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-card-label">Total Stored Records</span>
+              <span class="stat-card-value" id="db-stat-records">—</span>
+              <span class="stat-card-note">Students, Attendance, Devices</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-card-label">Database Size</span>
+              <span class="stat-card-value" id="db-stat-size">—</span>
+              <span class="stat-card-note">Data & Indexes</span>
+            </div>
+          </div>
+
+          <div class="action-bar" style="margin-top: 1rem; margin-bottom: 1.5rem; justify-content: flex-start; gap: 0.75rem; flex-wrap: wrap;">
+            <a href="/api/v1/admin/backup.php?action=export_sql" class="button button-primary" style="text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.7rem 1.25rem;">
+              ⬇️ Download Full SQL Backup (.sql)
+            </a>
+            <a href="/api/v1/admin/backup.php?action=export_json" class="button button-secondary" style="text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.7rem 1.25rem;">
+              ⬇️ Download JSON Backup (.json)
+            </a>
+            <button class="button button-secondary" onclick="openModal('modal-restore-backup')" style="display: inline-flex; align-items: center; gap: 0.5rem; border-color: #f59e0b; color: #fbbf24;">
+              ⬆️ Restore / Import Database (.sql)
+            </button>
+            <button class="button button-secondary" onclick="loadBackups()">🔄 Refresh Tables</button>
+          </div>
+
+          <div class="dashboard-grid">
+            <section class="panel">
+              <div class="panel-header">
+                <h3>Live Database Tables & Row Counts</h3>
+                <span id="db-tables-count">0 tables</span>
+              </div>
+              <div class="panel-body">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Table Name</th>
+                      <th>Row Count</th>
+                      <th>Data Size (KB)</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="db-tables-body">
+                    <tr><td colspan="4" style="text-align: center;">Loading tables...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-header">
+                <h3>Cloud Migration & Permanent Reliability Guide</h3>
+                <span style="color: #60a5fa;">Railway Free Tier Alternative</span>
+              </div>
+              <div class="panel-body" style="font-size: 0.85rem; line-height: 1.6; color: var(--foreground);">
+                <div style="background: rgba(59, 130, 246, 0.08); border-left: 4px solid #3b82f6; padding: 0.9rem; border-radius: var(--radius-sm); margin-bottom: 1rem;">
+                  <strong style="color: #60a5fa; font-size: 0.92rem;">Why download your SQL backup right now?</strong>
+                  <p style="margin: 0.35rem 0 0 0; color: var(--muted-foreground);">
+                    Railway free trial credits are non-renewable. Once credits run out, containers are halted and MySQL volumes risk being purged. Downloading your <code>.sql</code> backup preserves 100% of your student biometric slot assignments, attendance logs, and lecturer logins.
+                  </p>
+                </div>
+
+                <h4 style="margin: 0.75rem 0 0.35rem 0; font-size: 0.9rem; color: #fff;">Recommended Permanent Hosting Options:</h4>
+                <ul style="padding-left: 1.2rem; margin: 0; color: var(--muted-foreground);">
+                  <li style="margin-bottom: 0.5rem;">
+                    <strong style="color: #fff;">1. Aiven for MySQL (100% Free Forever)</strong>: Provides a free dedicated cloud MySQL database with automated daily backups. You can connect it directly to Render, Koyeb, or Railway.
+                  </li>
+                  <li style="margin-bottom: 0.5rem;">
+                    <strong style="color: #fff;">2. Cheap cPanel Shared Hosting (Namecheap / Hostinger / Local Registrar)</strong>: Costs ~$1.50 - $2.50/mo. Includes persistent MySQL, phpMyAdmin, unlimited automatic backups, and free SSL with zero container sleep.
+                  </li>
+                  <li style="margin-bottom: 0.5rem;">
+                    <strong style="color: #fff;">3. Local Department Mini-PC / Raspberry Pi (100% Free)</strong>: Run Apache & MySQL on a local PC connected to your faculty Wi-Fi router. ESP32 connects directly over LAN with 0 internet cost and instant attendance logging.
+                  </li>
+                </ul>
+              </div>
+            </section>
+          </div>
+        </div>
+
       </div>
     </main>
   </div>
 
   <!-- ================= MODALS ================= -->
+
+  <!-- Modal: Restore Database -->
+  <div id="modal-restore-backup" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Restore Database from SQL</h3>
+        <button class="close-btn" onclick="closeModal('modal-restore-backup')">&times;</button>
+      </div>
+      <form class="form-stack" onsubmit="handleRestoreBackup(event)">
+        <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); padding: 0.75rem; border-radius: var(--radius-sm); font-size: 0.8rem; color: #fca5a5;">
+          ⚠️ <strong>Warning:</strong> Restoring an SQL backup will overwrite existing tables and replace records with the contents of the backup file. Ensure you have downloaded a fresh backup first.
+        </div>
+        <div class="field" style="margin-top: 0.75rem;">
+          <label>Select SQL Backup File (.sql)</label>
+          <input type="file" id="restore-file-input" accept=".sql" required style="padding: 0.5rem 0;">
+        </div>
+        <div id="restore-progress-msg" style="display: none; font-size: 0.82rem; color: #60a5fa; margin-top: 0.5rem;">
+          ⏳ Restoring database... please do not close this window.
+        </div>
+        <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
+          <button type="submit" id="btn-submit-restore" class="button button-primary" style="background: #dc2626; border-color: #ef4444;">Proceed with Restore</button>
+          <button type="button" class="button button-secondary" onclick="closeModal('modal-restore-backup')">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- Modal: Add Lecturer -->
   <div id="modal-add-lecturer" class="modal-overlay">
@@ -609,7 +727,8 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'admin') {
         courses: 'Course Curriculum Management',
         students: 'Student Directory & Enrollment',
         semesters: 'Semester Lifecycle & Resets',
-        audit: 'Audit Center & Security Logs'
+        audit: 'Audit Center & Security Logs',
+        backups: 'Database Management & Cloud Backups'
       };
       document.getElementById('page-title').innerText = titles[tabId] || 'Admin Console';
 
@@ -625,6 +744,7 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'admin') {
       else if (currentTab === 'students') loadStudents();
       else if (currentTab === 'semesters') loadSemesters();
       else if (currentTab === 'audit') loadAuditLogs();
+      else if (currentTab === 'backups') loadBackups();
     }
 
     function openModal(id) { document.getElementById(id).classList.add('active'); }
@@ -1044,6 +1164,84 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'admin') {
         } else {
           body.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--muted-foreground);">No audit logs match your query.</td></tr>';
         }
+      }
+    }
+
+    // --- DATABASE & BACKUPS TAB ---
+    async function loadBackups() {
+      try {
+        const res = await fetch('/api/v1/admin/backup.php?action=status');
+        const json = await res.json();
+        if (json.success) {
+          const d = json.data;
+          document.getElementById('db-stat-name').innerText = d.database_name;
+          document.getElementById('db-stat-host').innerText = `MySQL ${d.mysql_version}`;
+          document.getElementById('db-stat-tables').innerText = d.total_tables;
+          document.getElementById('db-stat-version').innerText = `Server Time: ${d.server_time}`;
+          document.getElementById('db-stat-records').innerText = Number(d.total_records).toLocaleString();
+          document.getElementById('db-stat-size').innerText = `${d.total_size_mb} MB`;
+          document.getElementById('db-tables-count').innerText = `${d.total_tables} total tables`;
+
+          const body = document.getElementById('db-tables-body');
+          if (d.tables && d.tables.length > 0) {
+            body.innerHTML = d.tables.map(t => `
+              <tr>
+                <td style="font-family: var(--font-mono); font-weight: 600; color: #60a5fa;">${t.name}</td>
+                <td><strong>${Number(t.rows).toLocaleString()}</strong> rows</td>
+                <td>${t.size_kb.toFixed(2)} KB</td>
+                <td><span class="badge badge-success">Active</span></td>
+              </tr>
+            `).join('');
+          } else {
+            body.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--muted-foreground);">No tables found in database.</td></tr>';
+          }
+        } else {
+          alert('Failed to load database status: ' + (json.error || 'Unknown error'));
+        }
+      } catch (err) {
+        console.error('Error fetching database status:', err);
+      }
+    }
+
+    async function handleRestoreBackup(event) {
+      event.preventDefault();
+      const fileInput = document.getElementById('restore-file-input');
+      if (!fileInput.files || fileInput.files.length === 0) {
+        alert('Please choose an .sql backup file to restore.');
+        return;
+      }
+
+      if (!confirm('Are you ABSOLUTELY SURE you want to restore this backup? Existing tables will be overwritten.')) {
+        return;
+      }
+
+      const file = fileInput.files[0];
+      const formData = new FormData();
+      formData.append('backup_file', file);
+
+      const submitBtn = document.getElementById('btn-submit-restore');
+      const progressMsg = document.getElementById('restore-progress-msg');
+      submitBtn.disabled = true;
+      progressMsg.style.display = 'block';
+
+      try {
+        const res = await fetch('/api/v1/admin/backup.php?action=restore_sql', {
+          method: 'POST',
+          body: formData
+        });
+        const json = await res.json();
+        if (json.success) {
+          alert('Database restored successfully!');
+          closeModal('modal-restore-backup');
+          loadBackups();
+        } else {
+          alert('Restore failed: ' + (json.details || json.error || 'Server error'));
+        }
+      } catch (err) {
+        alert('Failed to execute restore: ' + err.message);
+      } finally {
+        submitBtn.disabled = false;
+        progressMsg.style.display = 'none';
       }
     }
 
