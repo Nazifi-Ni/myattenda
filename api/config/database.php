@@ -29,6 +29,11 @@ class Database {
                 PDO::ATTR_STRINGIFY_FETCHES  => false,                  // Don't convert numeric values to strings
             ];
 
+            // If connecting to cloud providers requiring SSL (like Aiven or TiDB)
+            if ($getEnvVar('DB_SSL') === 'true' || strpos($host, 'aivencloud.com') !== false) {
+                $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+            }
+
             try {
                 self::$instance = new PDO($dsn, $user, $pass, $options);
                 date_default_timezone_set('Africa/Lagos');
