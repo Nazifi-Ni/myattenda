@@ -1,0 +1,36 @@
+# Ignore everything by default
+/*
+
+# Explicitly allow the directories and files we need for Railway
+!/api/
+!/admin/
+!/dashboard/
+!/public/
+!/database/
+!/index.php
+!/login.php
+!/enroll.php
+!/simulator.php
+!/install.php
+!/Dockerfile
+!/vercel.json
+
+# Within those allowed directories, ignore specific bad things
+.env
+.env.*
+node_modules/
+.DS_Store
+*.log
+
+# Explicitly ignore the firmware and frontend junk
+/firmware/
+/firmware_proteus.bin
+/src/
+/.lovable/
+/scratch/
+/scratch.php
+*.md
+*.json
+*.toml
+*.js
+*.ts
