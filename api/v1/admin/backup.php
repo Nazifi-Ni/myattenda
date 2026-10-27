@@ -84,11 +84,11 @@ try {
 
         $out = fopen('php://output', 'w');
 
-        fwrite($out, "-- ================================================================\n");
-        fwrite($out, "-- MyAttenda V2 Complete Database Backup\n");
-        fwrite($out, "-- Generated: " . date('Y-m-d H:i:s') . "\n");
-        fwrite($out, "-- Platform: PHP " . PHP_VERSION . " / MySQL PDO\n");
-        fwrite($out, "-- ================================================================\n\n");
+        fwrite($out, "/* ================================================================ */\n");
+        fwrite($out, "/* MyAttenda V2 Complete Database Backup */\n");
+        fwrite($out, "/* Generated: " . date('Y-m-d H:i:s') . " */\n");
+        fwrite($out, "/* Platform: PHP " . PHP_VERSION . " / MySQL PDO */\n");
+        fwrite($out, "/* ================================================================ */\n\n");
         fwrite($out, "SET FOREIGN_KEY_CHECKS=0;\n");
         fwrite($out, "SET SQL_MODE = 'NO_AUTO_VALUE_ON_ZERO';\n");
         fwrite($out, "SET time_zone = '+01:00';\n\n");
@@ -98,9 +98,7 @@ try {
         $tables = $tablesStmt->fetchAll(PDO::FETCH_COLUMN);
 
         foreach ($tables as $table) {
-            fwrite($out, "\n-- --------------------------------------------------------\n");
-            fwrite($out, "-- Table structure for `{$table}`\n");
-            fwrite($out, "-- --------------------------------------------------------\n");
+            fwrite($out, "\n/* Table structure for `{$table}` */\n");
             fwrite($out, "DROP TABLE IF EXISTS `{$table}`;\n");
 
             // Create table statement
@@ -110,7 +108,7 @@ try {
             fwrite($out, $createTableSql . ";\n\n");
 
             // Dump table data
-            fwrite($out, "-- Dumping data for `{$table}`\n");
+            fwrite($out, "/* Dumping data for `{$table}` */\n");
             $rowsStmt = $db->query("SELECT * FROM `{$table}`");
             $columns = [];
             for ($i = 0; $i < $rowsStmt->columnCount(); $i++) {
