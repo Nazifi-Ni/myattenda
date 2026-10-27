@@ -448,7 +448,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="instructions-list">
                         <div class="instruction-item">
                             <span class="inst-num">1</span>
-                            <span>Locate your lecturer's <strong>MyAttenda ESP32 Scanner</strong> in the lecture hall.</span>
+                            <span>Locate your lecturer's <strong>MyAttenda Attendance Device</strong> in the lecture hall.</span>
                         </div>
                         <div class="instruction-item">
                             <span class="inst-num">2</span>

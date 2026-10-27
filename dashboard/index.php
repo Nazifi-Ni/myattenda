@@ -117,8 +117,8 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'lecturer') {
     <main class="workspace">
       <header class="workspace-header">
         <div>
-          <h1 id="page-title">Lecturer Workspace</h1>
-          <p>Personalized Biometric Console · Scoped Environment</p>
+          <h1 id="page-title">Workspace Overview</h1>
+          <p id="page-subtitle">Class Attendance & Student Records Management</p>
         </div>
         <div style="display: flex; gap: 0.75rem; align-items: center;">
           <span class="connection-chip" id="device-chip"><span class="status-dot offline"></span> Checking Device...</span>
@@ -147,32 +147,32 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'lecturer') {
               <span class="stat-card-note" id="stat-last-sync">Last sync: —</span>
             </div>
             <div class="stat-card">
-              <span class="stat-card-label">Enrolled Biometrics</span>
-              <span class="stat-card-value" id="stat-capacity">0 Enrolled</span>
+              <span class="stat-card-label">Student Fingerprints</span>
+              <span class="stat-card-value" id="stat-capacity">0 Registered</span>
               <div class="progress-bar-container">
                 <div class="progress-bar-fill good" id="stat-capacity-fill" style="width: 0%;"></div>
               </div>
-              <span class="stat-card-note" id="stat-capacity-note" style="margin-top: 0.35rem;">0 of 100 slots used (R558)</span>
+              <span class="stat-card-note" id="stat-capacity-note" style="margin-top: 0.35rem;">0 of 100 students registered</span>
             </div>
           </div>
 
           <!-- Active Attendance Controller -->
           <section class="panel">
             <div class="panel-header">
-              <h3>Live Attendance Session Controller</h3>
-              <span id="session-status-text">Dispatch to Hardware Scanner</span>
+              <h3>Take Class Attendance</h3>
+              <span id="session-status-text">Ready for Attendance</span>
             </div>
             <div class="panel-body">
               <div id="no-active-session">
                 <p style="font-size: 0.85rem; color: var(--muted-foreground); margin: 0 0 1rem;">
-                  Select an assigned course to activate your physical ESP32 scanner:
+                  Select a course to start taking attendance on your device:
                 </p>
                 <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;">
                   <select id="start-session-course-select" class="search-input" style="min-width: 18rem;"></select>
-                  <button class="button button-primary" onclick="startAttendanceSession()">▶️ Start Live Attendance</button>
+                  <button class="button button-primary" onclick="startAttendanceSession()">▶️ Start Attendance Session</button>
                 </div>
                 <div id="device-offline-notice" style="display: none; margin-top: 1rem; padding: 0.75rem 1rem; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: var(--radius-md); font-size: 0.8rem; color: #f87171;">
-                  ⚠️ <strong>Notice:</strong> Your assigned ESP32 is currently showing offline. Ensure your physical hardware is powered on and connected to Wi-Fi so it can receive session dispatches.
+                  ⚠️ <strong>Notice:</strong> Your attendance device is currently offline. Turn on your device and ensure it is connected to Wi-Fi to start taking attendance.
                 </div>
               </div>
 
@@ -323,18 +323,18 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'lecturer') {
           </div>
           <section class="panel">
             <div class="panel-header">
-              <h3>Enrolled Students Roster</h3>
-              <span>Scoped to Your Teaching Courses</span>
+              <h3>Student Class List</h3>
+              <span>Registered Students in Your Courses</span>
             </div>
             <div class="panel-body">
               <table class="data-table">
                 <thead>
                   <tr>
-                    <th>Temp ID (Hardware Slot)</th>
+                    <th>Passcode (Last 4)</th>
                     <th>Matric / Student ID</th>
                     <th>Full Name</th>
                     <th>Course Code</th>
-                    <th>Biometric Enrollment</th>
+                    <th>Fingerprint Status</th>
                     <th>Status</th>
                     <th>Actions</th>
                   </tr>
@@ -416,20 +416,20 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'lecturer') {
 
           <section class="panel">
             <div class="panel-header">
-              <h3>Cumulative Course Attendance</h3>
-              <span>Calculated from Verified DS3231 RTC Timestamps</span>
+              <h3>Course Attendance Summary</h3>
+              <span>Official Recorded Attendance</span>
             </div>
             <div class="panel-body">
               <table class="data-table">
                 <thead>
                   <tr>
-                    <th>Temp ID</th>
+                    <th>Passcode (Last 4)</th>
                     <th>Student ID</th>
                     <th>Full Name</th>
                     <th>Course</th>
                     <th>Attended / Total</th>
-                    <th>Attendance %</th>
-                    <th>Exam Status</th>
+                    <th>Attendance Rate</th>
+                    <th>Exam Eligibility</th>
                   </tr>
                 </thead>
                 <tbody id="reports-table-body">
@@ -597,9 +597,9 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'lecturer') {
           <select id="enroll-course-select" required></select>
         </div>
         <p style="font-size: 0.75rem; color: var(--muted-foreground);">
-          Enrolling will automatically use the last 4 digits of the student's registration number as their Biometric ID for the ESP32 keypad.
+          The student will enter the last 4 digits of their registration number on the keypad when registering their fingerprint on the attendance machine.
         </p>
-        <button type="submit" class="button button-primary">Enroll & Assign Biometric ID</button>
+        <button type="submit" class="button button-primary">Enroll Student into Course</button>
       </form>
     </div>
   </div>
@@ -810,15 +810,25 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'lecturer') {
       if (link) link.classList.add('active');
 
       const titles = {
-        overview: 'Workspace Overview',
-        sessions: 'Live Attendance Sessions',
-        courses: 'My Assigned Courses',
-        students: 'Enrolled Students Roster',
-        semesters: 'Academic Semesters & Lifecycle',
-        reports: 'Attendance Analytics & CSV Exports'
+        overview: 'Class Overview',
+        sessions: 'Attendance Sessions',
+        courses: 'My Courses',
+        students: 'Enrolled Students',
+        semesters: 'Academic Semesters',
+        reports: 'Attendance Reports & Defaulters'
+      };
+      const subtitles = {
+        overview: 'Welcome to your attendance and course management dashboard',
+        sessions: 'View past and ongoing classroom attendance records',
+        courses: 'Manage your teaching subjects and registered classes',
+        students: 'View students enrolled across your courses',
+        semesters: 'View academic calendar and semester periods',
+        reports: 'Analyze student attendance percentages and export spreadsheets'
       };
       const titleEl = document.getElementById('page-title');
-      if (titleEl) titleEl.innerText = titles[tabId] || 'Lecturer Console';
+      if (titleEl) titleEl.innerText = titles[tabId] || 'Lecturer Portal';
+      const subTitleEl = document.getElementById('page-subtitle');
+      if (subTitleEl) subTitleEl.innerText = subtitles[tabId] || '';
 
       refreshCurrentTab();
     }
@@ -880,12 +890,12 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'lecturer') {
           statDev.innerHTML = `<span class="status-dot ${isOnline ? 'online' : 'offline'}"></span> ${d.device_status || 'Offline'}`;
           document.getElementById('stat-last-sync').innerText = 'Last sync: ' + (d.last_sync_relative || d.last_synchronization || 'Never');
 
-          // Biometric templates calculation
+          // Student fingerprint count calculation
           const count = d.device ? (d.device.fingerprint_count || 0) : 0;
-          document.getElementById('stat-capacity').innerText = `${count} Enrolled`;
+          document.getElementById('stat-capacity').innerText = `${count} Registered`;
           const capNote = document.getElementById('stat-capacity-note');
           if (capNote) {
-            capNote.innerText = `${count} of 100 slots used (R558)`;
+            capNote.innerText = `${count} of 100 students registered`;
           }
           const capFill = document.getElementById('stat-capacity-fill');
           if (capFill) {
@@ -899,7 +909,7 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'lecturer') {
           if (chip) {
             if (d.device) {
               chip.className = `connection-chip ${isOnline ? 'chip-online' : 'chip-offline'}`;
-              chip.innerHTML = `<span class="status-dot ${isOnline ? 'online' : 'offline'}"></span> ${d.device.device_id} (${d.device_status})`;
+              chip.innerHTML = `<span class="status-dot ${isOnline ? 'online' : 'offline'}"></span> Attendance Device: ${isOnline ? 'Ready' : 'Offline'}`;
             } else {
               chip.className = 'connection-chip chip-offline';
               chip.innerHTML = '<span class="status-dot offline"></span> No Device Assigned';
@@ -973,7 +983,7 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'lecturer') {
           document.getElementById('session-status-text').innerHTML = '<span style="color: #34d399; font-weight: 700;">● Live Session Running</span>';
           document.getElementById('active-session-title').innerText = `${sess.course_code}: ${sess.course_title}`;
           document.getElementById('active-session-meta').innerHTML = `
-            Session #${sess.id} · Scanner: <strong>${sess.device_code || 'ESP32'}</strong> · Started: <code>${sess.start_time}</code>
+            Class Session #${sess.id} · Started: <code>${sess.start_time}</code>
           `;
 
           const enrolled = sess.enrolled_count || 0;
@@ -1017,7 +1027,7 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'lecturer') {
           const actSessBox = document.getElementById('active-session-box');
           if (noSessBox) noSessBox.style.display = 'block';
           if (actSessBox) actSessBox.style.display = 'none';
-          document.getElementById('session-status-text').innerText = 'Dispatch to Hardware Scanner';
+          document.getElementById('session-status-text').innerText = 'Ready for Attendance';
         }
       } catch (e) {
         console.error('Check active session error:', e);
@@ -1035,7 +1045,7 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'lecturer') {
       });
       const data = await res.json();
       if (data.success) {
-        alert('Attendance session started! Your assigned ESP32 is now accepting biometric fingerprints.');
+        alert('Attendance session started! Your attendance device is now ready to scan student fingerprints.');
         loadOverview();
       } else {
         alert(data.error || 'Failed to start session');
@@ -1494,8 +1504,8 @@ if (!Auth::isLoggedIn() || ($_SESSION['role'] ?? '') !== 'lecturer') {
             <td><strong>${e.course_code}</strong></td>
             <td>
               ${e.slot_number ?
-                `<span class="badge badge-success">Enrolled (Slot #${e.slot_number})</span>` :
-                `<span class="badge badge-warning">Pending Biometric</span>`}
+                `<span class="badge badge-success">Fingerprint Registered</span>` :
+                `<span class="badge badge-warning">Pending Fingerprint</span>`}
             </td>
             <td><span class="badge badge-success">${e.status}</span></td>
             <td>
